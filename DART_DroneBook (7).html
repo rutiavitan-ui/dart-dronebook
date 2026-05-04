@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DART DroneBook</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 14px; background: #f5f6fa; color: #1a1a2e; direction: rtl; }
+  .app { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; padding: 1rem 1.5rem; background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .logo { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+  .logo span { color: #185FA5; }
+  .conn-row { display: flex; align-items: center; gap: 8px; }
+  .conn-dot { width: 9px; height: 9px; border-radius: 50%; background: #aaa; }
+  .conn-dot.ok { background: #1D9E75; } .conn-dot.err { background: #E24B4A; } .conn-dot.loading { background: #EF9F27; }
+  .conn-label { font-size: 12px; color: #666; }
+  .setup-card { background: #fff; border: 2px solid #185FA5; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .setup-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .setup-sub { font-size: 13px; color: #666; margin-bottom: 1.25rem; }
+  .setup-steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.25rem; }
+  .step-item { display: flex; gap: 12px; align-items: flex-start; }
+  .step-n { min-width: 24px; height: 24px; border-radius: 50%; background: #185FA5; color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .step-t { font-size: 13px; line-height: 1.6; }
+  .url-row { display: flex; gap: 8px; }
+  .url-row input { flex: 1; }
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 1.5rem; background: #e8eaf0; border-radius: 10px; padding: 4px; }
+  .tab { flex: 1; padding: 9px 8px; border: none; background: transparent; border-radius: 8px; cursor: pointer; font-size: 13px; color: #666; font-family: inherit; font-weight: 500; transition: all 0.15s; }
+  .tab.active { background: #fff; color: #1a1a2e; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .card { background: #fff; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .card-title { font-size: 11px; font-weight: 700; color: #999; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .drone-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .drone-card { background: #fff; border: 2px solid #e8eaf0; border-radius: 12px; padding: 14px; cursor: pointer; transition: all 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .drone-card:hover { border-color: #b3d0f0; }
+  .drone-card.sel { border-color: #185FA5; box-shadow: 0 0 0 3px rgba(24,95,165,0.12); }
+  .d-id { font-size: 11px; color: #999; margin-bottom: 3px; }
+  .d-name { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  .sdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 5px; }
+  .s-ok { background: #1D9E75; } .s-warn { background: #EF9F27; } .s-err { background: #E24B4A; }
+  .spec-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; }
+  .sl { font-size: 12px; color: #888; padding: 4px 0; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+  .sv { font-size: 12px; font-weight: 600; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+  .form-row { margin-bottom: 12px; }
+  .form-label { font-size: 12px; color: #666; margin-bottom: 4px; display: block; font-weight: 500; }
+  input, select, textarea { width: 100%; padding: 9px 12px; border: 1.5px solid #e0e3eb; border-radius: 8px; font-family: inherit; font-size: 13px; background: #fafbfc; color: #1a1a2e; transition: border-color 0.15s; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: #185FA5; background: #fff; }
+  textarea { resize: vertical; min-height: 60px; }
+  .f2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .f3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .sig-box { border: 1.5px solid #e8eaf0; border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; background: #fafbfc; margin-bottom: 10px; transition: border-color 0.15s; }
+  .sig-box.signed { border-color: #1D9E75; background: #f0faf6; }
+  .sig-info { flex: 1; }
+  .sig-role { font-size: 13px; font-weight: 600; }
+  .sig-desc { font-size: 11px; color: #888; }
+  .sig-st { font-size: 12px; white-space: nowrap; }
+  .sig-ok { color: #1D9E75; font-weight: 600; }
+  .sig-pend { color: #aaa; font-style: italic; }
+  .sig-btn { padding: 6px 14px; border: 1.5px solid #dde0e8; border-radius: 8px; background: white; font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 600; color: #444; transition: all 0.15s; white-space: nowrap; }
+  .sig-btn:hover { border-color: #185FA5; color: #185FA5; }
+  .sig-btn.signed { border-color: #1D9E75; color: #1D9E75; background: #f0faf6; }
+  .sig-name-input { width: 120px !important; padding: 6px 10px !important; font-size: 12px !important; }
+  .btn-p { background: #185FA5; color: white; border: none; border-radius: 8px; padding: 10px 22px; font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 600; transition: background 0.15s; }
+  .btn-p:hover { background: #0c447c; }
+  .btn-p:disabled { background: #aaa; cursor: not-allowed; }
+  .btn-s { background: white; color: #444; border: 1.5px solid #dde0e8; border-radius: 8px; padding: 10px 22px; font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 600; }
+  .btn-s:hover { border-color: #185FA5; color: #185FA5; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .b-green { background: #e6f7f1; color: #0a6b4a; }
+  .b-amber { background: #fff4e0; color: #8a5500; }
+  .b-red { background: #fdeaea; color: #9b1c1c; }
+  .b-blue { background: #e6f1fb; color: #0c447c; }
+  .tentry { border: 1.5px solid #edf0f7; border-radius: 10px; padding: 14px; margin-bottom: 10px; background: #fafbfc; }
+  .th { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: #f0f2f7; color: #666; border: 1px solid #e0e3eb; }
+  .chip.ok { background: #e6f7f1; color: #0a6b4a; border-color: #a8e6d0; font-weight: 600; }
+  .empty { text-align: center; padding: 2.5rem; color: #aaa; font-size: 14px; }
+  .step-ind { display: flex; align-items: center; gap: 6px; margin-bottom: 1.5rem; }
+  .sn { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+  .sn-done { background: #1D9E75; color: white; }
+  .sn-active { background: #185FA5; color: white; }
+  .sn-pend { background: #e8eaf0; color: #888; }
+  .sline { flex: 1; height: 1px; background: #e0e3eb; }
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid #ddd; border-top-color: #185FA5; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1D9E75; color: white; padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+  .toast.err { background: #E24B4A; }
+  .section { display: none; }
+  .section.active { display: block; }
+  .fault-card { background: #fff; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.07); border-right: 4px solid #e0e3eb; }
+  .fault-card.open { border-right-color: #EF9F27; }
+  .fault-card.closed { border-right-color: #1D9E75; }
+  .fault-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .fault-title { font-size: 15px; font-weight: 700; }
+  .fault-sub { font-size: 12px; color: #888; margin-top: 2px; }
+  .fault-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; font-size: 13px; margin-bottom: 10px; }
+  .fl { color: #888; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+  .fv { font-weight: 600; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+  .fault-desc-box { background: #f8f9fc; border-radius: 8px; padding: 10px 14px; margin-top: 8px; }
+  .fault-desc-label { font-size: 11px; color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .fault-desc-val { font-size: 13px; line-height: 1.6; color: #333; }
+  .fault-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .open-b { background: #fff4e0; color: #8a5500; }
+  .closed-b { background: #e6f7f1; color: #0a6b4a; }
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 1.25rem; }
+  .stat-card { background: #fff; border-radius: 12px; padding: 14px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .stat-label { font-size: 11px; color: #888; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-val { font-size: 26px; font-weight: 800; }
+  .connmsg { font-size: 12px; color: #888; margin-top: 8px; }
+  .connmsg.err { color: #E24B4A; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+  .section-title { font-size: 16px; font-weight: 700; }
+  .modal-overlay { display: none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 16px; padding: 1.5rem; width: 90%; max-width: 620px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.18); }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+  .modal-title { font-size: 17px; font-weight: 700; }
+  .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: #888; line-height: 1; padding: 0 4px; }
+  .modal-close:hover { color: #333; }
+  .btn-edit { background: #f0f4fa; color: #185FA5; border: 1.5px solid #c5d8f0; border-radius: 8px; padding: 7px 14px; font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.15s; }
+  .btn-edit:hover { background: #185FA5; color: white; }
+  .status-select { display: flex; gap: 8px; }
+  .status-opt { flex: 1; padding: 8px; border: 1.5px solid #e0e3eb; border-radius: 8px; text-align: center; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.15s; }
+  .status-opt.active-ok { border-color: #1D9E75; background: #e6f7f1; color: #0a6b4a; }
+  .status-opt.active-warn { border-color: #EF9F27; background: #fff4e0; color: #8a5500; }
+  .status-opt.active-err { border-color: #E24B4A; background: #fdeaea; color: #9b1c1c; }
+</style>
+</head>
+<body>
+<div id="toast" class="toast"></div>
+
+<!-- מודל עריכת רחפן -->
+<div class="modal-overlay" id="editModal" onclick="closeEditModalBg(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="editModalTitle">עריכת תצורת רחפן</div>
+      <button class="modal-close" onclick="closeEditModal()">&#x2715;</button>
+    </div>
+    <input type="hidden" id="editId"/>
+    <input type="hidden" id="editIsNew" value="false"/>
+    <div class="card-title" style="margin-bottom:10px">פרטי זיהוי</div>
+    <div class="f2">
+      <div class="form-row"><label class="form-label">מספר סידורי</label><input type="text" id="eSerial"/></div>
+      <div class="form-row"><label class="form-label">ווריאנט</label><input type="text" id="eVariant"/></div>
+    </div>
+    <div class="f2">
+      <div class="form-row"><label class="form-label">גרסת תוכנה</label><input type="text" id="eSw"/></div>
+      <div class="form-row"><label class="form-label">רוטורים</label><input type="number" id="eRotors"/></div>
+    </div>
+    <div class="card-title" style="margin:14px 0 10px">חומרה</div>
+    <div class="f2">
+      <div class="form-row"><label class="form-label">סוג מנוע</label><input type="text" id="eEngine"/></div>
+      <div class="form-row"><label class="form-label">בקר טיסה</label><input type="text" id="eFc"/></div>
+    </div>
+    <div class="f2">
+      <div class="form-row"><label class="form-label">בקר מנועים (ESC)</label><input type="text" id="eEsc"/></div>
+      <div class="form-row"><label class="form-label">GPS</label><input type="text" id="eGps"/></div>
+    </div>
+    <div class="f2">
+      <div class="form-row"><label class="form-label">ממיר מתח</label><input type="text" id="ePdc"/></div>
+      <div class="form-row"><label class="form-label">סוג מצלמה</label><input type="text" id="eCamera"/></div>
+    </div>
+    <div class="f2">
+      <div class="form-row"><label class="form-label">זווית מצלמה</label><input type="text" id="eCamAngle"/></div>
+    </div>
+    <div class="card-title" style="margin:14px 0 10px">סטטוס ותצורה</div>
+    <div class="form-row">
+      <label class="form-label">סטטוס</label>
+      <div class="status-select">
+        <div class="status-opt" id="sopt-ok" onclick="setStatus('ok')">תקין</div>
+        <div class="status-opt" id="sopt-warn" onclick="setStatus('warn')">בניסוי</div>
+        <div class="status-opt" id="sopt-err" onclick="setStatus('err')">בתיקון</div>
+      </div>
+    </div>
+    <div class="form-row"><label class="form-label">הערות כלליות</label><textarea id="eNotes" rows="2"></textarea></div>
+    <div class="form-row"><label class="form-label">שינויים בתצורת הרכבה</label><textarea id="eConfigNotes" rows="3" placeholder="תאר שינויים מכניים, תוספות, החלפת רכיבים..."></textarea></div>
+    <div class="card-title" style="margin:14px 0 10px">פרטי עדכון</div>
+    <div class="f2">
+      <div class="form-row"><label class="form-label">שם העורך</label><input type="text" id="eChangedBy" placeholder="שם מלא"/></div>
+      <div class="form-row"><label class="form-label">תאריך עדכון</label><input type="date" id="eChangedAt"/></div>
+    </div>
+    <div class="form-row"><label class="form-label">סיבת השינוי</label><textarea id="eChangeReason" rows="2" placeholder="למה מתבצע השינוי? מה השתנה?"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+      <button class="btn-s" onclick="closeEditModal()">ביטול</button>
+      <button class="btn-p" id="saveEditBtn" onclick="saveDroneEdit()">שמור ב-Sheets</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <div class="header">
+    <div class="logo">DART <span>DroneBook</span></div>
+    <div class="conn-row">
+      <div class="conn-dot" id="connDot"></div>
+      <span class="conn-label" id="connLabel">לא מחובר</span>
+    </div>
+  </div>
+
+  <div class="setup-card" id="setupCard" style="display:none">
+    <div id="connMsg" class="connmsg"></div>
+  </div>
+
+  <div id="mainApp" style="display:none">
+    <div class="tab-bar">
+      <button class="tab active" onclick="showTab('fleet',this)">צי רחפנים</button>
+      <button class="tab" onclick="showTab('newtest',this)">ניסוי חדש</button>
+      <button class="tab" onclick="showTab('history',this)">היסטוריה</button>
+      <button class="tab" onclick="showTab('faults',this)">תקלות</button>
+      <button class="tab" onclick="showTab('dronehistory',this)">היסטוריית תצורה</button>
+      <button class="tab" onclick="showTab('admin',this)" style="color:#E24B4A">ניהול</button>
+    </div>
+
+    <!-- צי רחפנים -->
+    <div id="tab-fleet" class="section active">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn-p" onclick="openNewDroneModal()" style="font-size:13px;padding:9px 18px">+ הוסף רחפן חדש</button>
+      </div>
+      <div class="drone-grid" id="droneGrid"></div>
+      <div id="droneDetail"></div>
+    </div>
+
+    <!-- ניסוי חדש -->
+    <div id="tab-newtest" class="section">
+      <div class="step-ind">
+        <div class="sn sn-active" id="s1">1</div>
+        <span style="font-size:12px;color:#666">פרטי ניסוי</span>
+        <div class="sline"></div>
+        <div class="sn sn-pend" id="s2">2</div>
+        <span style="font-size:12px;color:#666">חתימות</span>
+        <div class="sline"></div>
+        <div class="sn sn-pend" id="s3">3</div>
+        <span style="font-size:12px;color:#666">אחרי ניסוי</span>
+      </div>
+
+      <div id="fStep1">
+        <div class="card">
+          <div class="card-title">פרטי ניסוי</div>
+          <div class="f2">
+            <div class="form-row"><label class="form-label">תאריך</label><input type="date" id="tDate"/></div>
+            <div class="form-row"><label class="form-label">רחפן</label><select id="tDrone"><option value="">בחר...</option></select></div>
+          </div>
+          <div class="form-row"><label class="form-label">תיאור ומטרת הניסוי</label><textarea id="tDesc" rows="4" placeholder="מטרה, פרמטרים משתנים, תנאים..."></textarea></div>
+          <div class="f2">
+            <div class="form-row"><label class="form-label">שינויי תצורה</label><textarea id="tConfig" rows="3" placeholder="PID, גרסת תוכנה, כיול..."></textarea></div>
+            <div class="form-row"><label class="form-label">תנאי סביבה</label><textarea id="tEnv" rows="3" placeholder="רוח, טמפ', שטח..."></textarea></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn-p" onclick="gStep(2)">המשך לחתימות ←</button>
+        </div>
+      </div>
+
+      <div id="fStep2" style="display:none">
+        <div class="card">
+          <div class="card-title">חתימות לפני טיסה</div>
+          <div class="sig-box" id="sigbox1">
+            <div class="sig-info"><div class="sig-role">טכנאי</div><div class="sig-desc">בדק חומרה ותצורה</div></div>
+            <input type="text" class="sig-name-input" id="sn1" placeholder="שם מלא"/>
+            <div id="ss1" class="sig-st sig-pend">ממתין</div>
+            <button class="sig-btn" id="sb1" onclick="sign(1)">חתום</button>
+          </div>
+          <div class="sig-box" id="sigbox2">
+            <div class="sig-info"><div class="sig-role">טייס</div><div class="sig-desc">בדיקת Pre-flight</div></div>
+            <input type="text" class="sig-name-input" id="sn2" placeholder="שם מלא"/>
+            <div id="ss2" class="sig-st sig-pend">ממתין</div>
+            <button class="sig-btn" id="sb2" onclick="sign(2)">חתום</button>
+          </div>
+          <div class="sig-box" id="sigbox3">
+            <div class="sig-info"><div class="sig-role">מהנדס מערכת</div><div class="sig-desc">אישור פרוטוקול</div></div>
+            <input type="text" class="sig-name-input" id="sn3" placeholder="שם מלא"/>
+            <div id="ss3" class="sig-st sig-pend">ממתין</div>
+            <button class="sig-btn" id="sb3" onclick="sign(3)">חתום</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn-s" onclick="gStep(1)">חזור</button>
+          <button class="btn-p" id="toStep3" onclick="gStep(3)" disabled>המשך לתוצאות ←</button>
+        </div>
+      </div>
+
+      <div id="fStep3" style="display:none">
+        <div class="card">
+          <div class="card-title">תוצאות ניסוי</div>
+          <div class="form-row">
+            <label class="form-label">תוצאה</label>
+            <select id="tResult">
+              <option value="">בחר...</option>
+              <option>הצלחה — ללא תקלות</option>
+              <option>הצלחה חלקית — עם תקלות</option>
+              <option>כישלון — הופסק</option>
+            </select>
+          </div>
+          <div class="form-row"><label class="form-label">סוג תקלה</label><input type="text" id="tFault" placeholder="לדוגמה: אובדן GPS, רעש מנוע..."/></div>
+          <div class="f2">
+            <div class="form-row"><label class="form-label">תאריך פתיחת תקלה</label><input type="date" id="tFaultOpen"/></div>
+            <div class="form-row"><label class="form-label">תאריך סגירת תקלה</label><input type="date" id="tFaultClose"/></div>
+          </div>
+          <div class="form-row"><label class="form-label">תיאור התיקון</label><textarea id="tFix" rows="3" placeholder="תאר בפירוט מה בוצע — שינויים, החלפת רכיבים, כיול..."></textarea></div>
+          <div class="f2">
+            <div class="form-row"><label class="form-label">מי תיקן</label><input type="text" id="tFixBy" placeholder="שם הטכנאי / מהנדס"/></div>
+            <div class="form-row"><label class="form-label">תאריך תיקון</label><input type="date" id="tFixDate"/></div>
+          </div>
+          <div class="form-row"><label class="form-label">הערות</label><textarea id="tNotes" rows="2"></textarea></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn-s" onclick="gStep(2)">חזור</button>
+          <button class="btn-p" id="saveBtn" onclick="saveTest()">שמור ב-Google Sheets ↑</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- היסטוריה -->
+    <div id="tab-history" class="section">
+      <div class="section-header">
+        <div class="section-title">היסטוריית ניסויים</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="filterDrone" style="width:auto;min-width:140px" onchange="renderHistory()"><option value="">כל הרחפנים</option></select>
+          <button class="btn-s" onclick="loadTests()" style="padding:7px 14px;font-size:12px">רענן</button>
+        </div>
+      </div>
+      <div id="historyList"></div>
+    </div>
+
+    <!-- תקלות -->
+    <div id="tab-faults" class="section">
+      <div class="section-header">
+        <div class="section-title">לוג תקלות ותיקונים</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="faultFilter" style="width:auto;min-width:120px" onchange="renderFaults()">
+            <option value="">הכל</option>
+            <option value="open">פתוחות</option>
+            <option value="closed">סגורות</option>
+          </select>
+          <button class="btn-s" onclick="loadTests()" style="padding:7px 14px;font-size:12px">רענן</button>
+        </div>
+      </div>
+      <div class="stats-row" id="faultStats"></div>
+      <div id="faultsList"></div>
+    </div>
+
+    <!-- ניהול מערכת -->
+    <div id="tab-admin" class="section">
+      <div class="section-title" style="margin-bottom:1.25rem">ניהול מערכת</div>
+
+      <!-- עדכון גרסה -->
+      <div class="card" style="border-right:4px solid #185FA5">
+        <div class="card-title">עדכון גרסת האפליקציה</div>
+        <div style="font-size:13px;color:#444;line-height:1.8;margin-bottom:12px">
+          כדי לעדכן את האפליקציה לגרסה חדשה ללא פגיעה במידע:
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="min-width:22px;height:22px;border-radius:50%;background:#185FA5;color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">1</div>
+            <div style="font-size:13px">קבלי את קובץ ה-HTML החדש מהמפתח (Claude)</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="min-width:22px;height:22px;border-radius:50%;background:#185FA5;color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">2</div>
+            <div style="font-size:13px">פתחי את תיקיית Google Drive המשותפת</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="min-width:22px;height:22px;border-radius:50%;background:#185FA5;color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">3</div>
+            <div style="font-size:13px">לחצי ימין על הקובץ הישן ← <b>Manage versions</b> ← <b>Upload new version</b> — כך הקישור נשאר זהה לכולם</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="min-width:22px;height:22px;border-radius:50%;background:#185FA5;color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">4</div>
+            <div style="font-size:13px">המידע ב-Google Sheet לא נפגע — רק הממשק מתעדכן</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ניקוי מידע דמה -->
+      <div class="card" style="border-right:4px solid #E24B4A">
+        <div class="card-title" style="color:#E24B4A">ניקוי מידע דמה</div>
+        <div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:14px">
+          פעולה זו תמחק את <b>5 הרחפנים לדוגמה</b> ואת <b>כל הניסויים</b> שנוצרו כדמו. מידע אמיתי שהזנת ידנית <b>לא יימחק</b>.
+          <br><span style="color:#E24B4A;font-weight:600">פעולה זו אינה הפיכה!</span>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-s" style="border-color:#E24B4A;color:#E24B4A" onclick="confirmClear('drones')">מחק רחפני דמה בלבד</button>
+          <button class="btn-s" style="border-color:#E24B4A;color:#E24B4A" onclick="confirmClear('tests')">מחק ניסויי דמה בלבד</button>
+          <button class="btn-p" style="background:#E24B4A" onclick="confirmClear('all')">מחק הכל — התחל מחדש</button>
+        </div>
+        <div id="clearMsg" style="font-size:12px;margin-top:10px"></div>
+      </div>
+
+      <!-- הוראות ניקוי ידני -->
+      <div class="card">
+        <div class="card-title">ניקוי ידני ב-Google Sheet</div>
+        <div style="font-size:13px;color:#444;line-height:1.9">
+          פתח את ה-Sheet ועבור לגיליון המתאים:
+          <br>• <b>Drones</b> — סמן שורות 2–6, לחץ ימין ← Delete rows
+          <br>• <b>Tests</b> — סמן את כל השורות מ-2 ומטה ← Delete rows  
+          <br>• <b>DroneHistory</b> — סמן הכל מ-2 ומטה ← Delete rows
+          <br><br>
+          <span style="color:#888">שורה 1 (כותרות) — אל תמחק!</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- היסטוריית תצורה -->
+    <div id="tab-dronehistory" class="section">
+      <div class="section-header">
+        <div class="section-title">היסטוריית תצורת רחפנים</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="histDroneFilter" style="width:auto;min-width:140px" onchange="renderDroneHistory()">
+            <option value="">כל הרחפנים</option>
+          </select>
+          <button class="btn-s" onclick="loadDroneHistory()" style="padding:7px 14px;font-size:12px">רענן</button>
+        </div>
+      </div>
+      <div id="droneHistoryList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Supabase config ──────────────────────────────────────────
+const SUPA_URL = 'https://mgvnlpsgpwnrpblibljw.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ndm5scHNncHducnBibGlibGp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NDY3OTgsImV4cCI6MjA5MzQyMjc5OH0.lMTmpY0aRWxdpxUf1nBnQtyQoUY7jLJ9nnaysD4zoxo';
+
+async function supabase(method, table, data=null, filters=null) {
+  let url = `${SUPA_URL}/rest/v1/${table}`;
+  if (filters) url += '?' + filters;
+  const opts = {
+    method,
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'resolution=merge-duplicates,return=representation' : 'return=representation'
+    }
+  };
+  if (data) opts.body = JSON.stringify(data);
+  const r = await fetch(url, opts);
+  if (!r.ok) {
+    const err = await r.text();
+    throw new Error(err);
+  }
+  const text = await r.text();
+  return text ? JSON.parse(text) : [];
+}
+let drones = [], tests = [], sigs = [false,false,false], selDrone = null;
+
+function toast(msg, isErr=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isErr?' err':'') + ' show';
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function setConn(state) {
+  document.getElementById('connDot').className = 'conn-dot ' + state;
+  document.getElementById('connLabel').textContent = state==='ok'?'מחובר ל-Sheets':state==='loading'?'מתחבר...':'לא מחובר';
+}
+
+async function api(params, method='GET', body=null) {
+  if (!API_URL) throw new Error('No API URL');
+  if (method === 'GET') {
+    const r = await fetch(API_URL + '?' + new URLSearchParams(params).toString());
+    return r.json();
+  }
+  const r = await fetch(API_URL, {method:'POST', body: JSON.stringify({...params,...(body||{})})});
+  return r.json();
+}
+
+async function connectSheet() {
+  // Supabase — always connected, just ping
+  setConn('loading');
+  try {
+    const r = await supabase('GET', 'drones', null, 'limit=1');
+    setConn('ok');
+    document.getElementById('setupCard').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    await loadAll();
+  } catch(e) {
+    setConn('err');
+    const el = document.getElementById('connMsg');
+    el.textContent = 'שגיאה: ' + e.message;
+    el.className = 'connmsg err';
+  }
+}
+
+function showConnMsg(msg, isErr=false) {
+  const el = document.getElementById('connMsg');
+  if(!el) return;
+  el.textContent = msg;
+  el.className = 'connmsg' + (isErr?' err':'');
+}
+
+async function loadAll() { await Promise.all([loadDrones(), loadTests()]); }
+
+async function loadDrones() {
+  try {
+    drones = await supabase('GET', 'drones', null, 'order=id');
+    if (!Array.isArray(drones)) drones = [];
+    renderDroneGrid();
+    populateDroneSelects();
+    if (drones.length > 0 && !selDrone) selectDrone(drones[0].id);
+  } catch(e) { toast('שגיאה בטעינת רחפנים: ' + e.message, true); }
+}
+
+async function loadTests() {
+  try {
+    tests = await supabase('GET', 'tests', null, 'order=date');
+    if (!Array.isArray(tests)) tests = [];
+    // map description back to desc for UI compatibility
+    tests = tests.map(t => ({...t, desc: t.description || t.desc || ''}));
+    renderHistory(); renderFaults();
+  } catch(e) { toast('שגיאה בטעינת ניסויים: ' + e.message, true); }
+}
+
+function populateDroneSelects() {
+  ['tDrone','filterDrone'].forEach(id => {
+    const s = document.getElementById(id); if(!s) return;
+    const cur = s.value;
+    s.innerHTML = id==='filterDrone'?'<option value="">כל הרחפנים</option>':'<option value="">בחר...</option>';
+    drones.forEach(d => { const o = document.createElement('option'); o.value=d.id; o.textContent=d.id; s.appendChild(o); });
+    if (cur) s.value = cur;
+  });
+}
+
+function renderDroneGrid() {
+  document.getElementById('droneGrid').innerHTML = drones.map(d => `
+    <div class="drone-card ${selDrone===d.id?'sel':''}" onclick="selectDrone('${d.id}')">
+      <div class="d-id">${d.serial||''}</div>
+      <div class="d-name">${d.id}</div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <div class="sdot s-${d.status||'ok'}"></div>
+        <span style="font-size:11px;color:#888">${d.status==='ok'?'תקין':d.status==='warn'?'בניסוי':'בתיקון'}</span>
+      </div>
+    </div>`).join('');
+}
+
+function selectDrone(id) {
+  selDrone = id; renderDroneGrid();
+  const d = drones.find(x=>x.id===id); if (!d) return;
+  const dTests = tests.filter(t=>t.drone===id);
+  document.getElementById('droneDetail').innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="card-title" style="margin-bottom:0">פרופיל — ${d.id}</div>
+        <button class="btn-edit" onclick="openEditModal('${d.id}')">ערוך תצורה</button>
+      </div>
+      <div class="spec-grid">
+        <div class="sl">מספר סידורי</div><div class="sv">${d.serial||'—'}</div>
+        <div class="sl">גרסת תוכנה</div><div class="sv">${d.sw||'—'}</div>
+        <div class="sl">מנוע</div><div class="sv">${d.engine||'—'}</div>
+        <div class="sl">רוטורים</div><div class="sv">${d.rotors||'—'}</div>
+        <div class="sl">בקר טיסה</div><div class="sv">${d.fc||'—'}</div>
+        <div class="sl">בקר מנועים</div><div class="sv">${d.esc||'—'}</div>
+        <div class="sl">GPS</div><div class="sv">${d.gps||'—'}</div>
+        <div class="sl">ממיר מתח</div><div class="sv">${d.pdc||'—'}</div>
+        <div class="sl">מצלמה</div><div class="sv">${d.camera||'—'}</div>
+        <div class="sl">זווית מצלמה</div><div class="sv">${d.camAngle||'—'}</div>
+        <div class="sl">ווריאנט</div><div class="sv">${d.variant||'—'}</div>
+      </div>
+      ${d.notes?`<div style="margin-top:10px;font-size:12px;color:#666;border-top:1px solid #f0f0f0;padding-top:10px"><b>הערות:</b> ${d.notes}</div>`:''}
+      ${d.configNotes?`<div style="margin-top:8px;font-size:12px;color:#444;background:#f8f9fc;border-radius:8px;padding:8px 12px"><b>שינויי תצורה:</b> ${d.configNotes}</div>`:''}
+    </div>
+    <div class="card">
+      <div class="card-title">ניסויים אחרונים (${dTests.length})</div>
+      ${dTests.length===0?'<div class="empty">אין ניסויים</div>':
+        [...dTests].reverse().slice(0,3).map(t=>`
+          <div class="tentry">
+            <div class="th">
+              <span style="font-size:13px;font-weight:700">${t.date}</span>
+              <span class="badge ${bClass(t.result)}">${(t.result||'').split(' — ')[0]}</span>
+            </div>
+            <div style="font-size:12px;color:#666">${(t.desc||'').substring(0,80)}${(t.desc||'').length>80?'...':''}</div>
+          </div>`).join('')}
+    </div>`;
+}
+
+let editStatus = 'ok';
+
+function openEditModal(id) {
+  const d = drones.find(x=>x.id===id); if (!d) return;
+  document.getElementById('editId').value = id;
+  document.getElementById('editIsNew').value = 'false';
+  document.getElementById('editModalTitle').textContent = 'עריכת תצורת ' + id;
+  document.getElementById('saveEditBtn').textContent = 'שמור שינויים ב-Sheets';
+  // pre-fill meta fields
+  document.getElementById('eChangedAt').value = new Date().toISOString().split('T')[0];
+  document.getElementById('eChangedBy').value = '';
+  document.getElementById('eChangeReason').value = '';
+  document.getElementById('eSerial').value = d.serial||'';
+  document.getElementById('eVariant').value = d.variant||'';
+  document.getElementById('eSw').value = d.sw||'';
+  document.getElementById('eRotors').value = d.rotors||'';
+  document.getElementById('eEngine').value = d.engine||'';
+  document.getElementById('eFc').value = d.fc||'';
+  document.getElementById('eEsc').value = d.esc||'';
+  document.getElementById('eGps').value = d.gps||'';
+  document.getElementById('ePdc').value = d.pdc||'';
+  document.getElementById('eCamera').value = d.camera||'';
+  document.getElementById('eCamAngle').value = d.camAngle||'';
+  document.getElementById('eNotes').value = d.notes||'';
+  document.getElementById('eConfigNotes').value = d.configNotes||'';
+  editStatus = d.status || 'ok';
+  setStatus(editStatus);
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('open');
+}
+
+function closeEditModalBg(e) {
+  if (e.target === document.getElementById('editModal')) closeEditModal();
+}
+
+function setStatus(s) {
+  editStatus = s;
+  ['ok','warn','err'].forEach(v => {
+    const el = document.getElementById('sopt-'+v);
+    el.className = 'status-opt' + (v===s ? ' active-'+v : '');
+  });
+}
+
+async function saveDroneEdit() {
+  const btn = document.getElementById('saveEditBtn');
+  const isNew = document.getElementById('editIsNew').value === 'true';
+  const changedBy = document.getElementById('eChangedBy').value.trim();
+  if (!changedBy) { toast('יש להזין שם עורך', true); return; }
+  btn.innerHTML = '<span class="spin"></span> שומר...'; btn.disabled = true;
+  const id = document.getElementById('editId').value || ('DART-' + (drones.length+1).toString().padStart(3,'0'));
+  const data = {
+    id: id,
+    serial: document.getElementById('eSerial').value,
+    variant: document.getElementById('eVariant').value,
+    sw: document.getElementById('eSw').value,
+    rotors: document.getElementById('eRotors').value,
+    engine: document.getElementById('eEngine').value,
+    fc: document.getElementById('eFc').value,
+    esc: document.getElementById('eEsc').value,
+    gps: document.getElementById('eGps').value,
+    pdc: document.getElementById('ePdc').value,
+    camera: document.getElementById('eCamera').value,
+    camAngle: document.getElementById('eCamAngle').value,
+    notes: document.getElementById('eNotes').value,
+    configNotes: document.getElementById('eConfigNotes').value,
+    status: editStatus,
+    changedBy: changedBy,
+    changedAt: document.getElementById('eChangedAt').value,
+    changeReason: document.getElementById('eChangeReason').value,
+  };
+  try {
+    // Save history first if editing existing drone
+    if (!isNew) {
+      const existing = drones.find(x=>x.id===id);
+      if (existing) {
+        const hist = {
+          historyId: 'H' + Date.now(),
+          droneId: id,
+          changedAt: new Date().toISOString(),
+          changedBy: data.changedBy || '',
+          changeReason: data.changeReason || '',
+          serial: existing.serial, engine: existing.engine, variant: existing.variant,
+          sw: existing.sw, camera: existing.camera, camAngle: existing.camAngle,
+          rotors: existing.rotors ? parseInt(existing.rotors) : null,
+          fc: existing.fc, esc: existing.esc, gps: existing.gps, pdc: existing.pdc,
+          status: existing.status, notes: existing.notes, configNotes: existing.configNotes
+        };
+        await supabase('POST', 'drone_history', hist);
+      }
+    }
+    const droneData = {
+      id: data.id, serial: data.serial, engine: data.engine, variant: data.variant,
+      sw: data.sw, camera: data.camera, camAngle: data.camAngle,
+      rotors: data.rotors ? parseInt(data.rotors) : null,
+      fc: data.fc, esc: data.esc, gps: data.gps, pdc: data.pdc,
+      status: data.status, notes: data.notes, configNotes: data.configNotes,
+      updatedAt: new Date().toISOString()
+    };
+    await supabase('POST', 'drones', droneData);
+    toast(isNew ? 'רחפן חדש נוסף!' : 'תצורת הרחפן עודכנה!');
+    closeEditModal();
+    await loadDrones();
+    selectDrone(id);
+  } catch(e) { toast('שגיאה בשמירה: ' + e.message, true); }
+  btn.textContent = isNew ? 'הוסף רחפן' : 'שמור שינויים';
+  btn.disabled = false;
+}
+
+function bClass(r) {
+  if (!r) return 'b-blue';
+  if (r.startsWith('הצלחה — ללא')) return 'b-green';
+  if (r.startsWith('הצלחה חלקית')) return 'b-amber';
+  return 'b-red';
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name==='history') renderHistory();
+  if (name==='faults') renderFaults();
+  if (name==='dronehistory') { loadDroneHistory(); populateHistDroneFilter(); }
+}
+
+function populateHistDroneFilter() {
+  const s = document.getElementById('histDroneFilter'); if(!s) return;
+  const cur = s.value;
+  s.innerHTML = '<option value="">כל הרחפנים</option>';
+  drones.forEach(d => { const o=document.createElement('option'); o.value=d.id; o.textContent=d.id; s.appendChild(o); });
+  if (cur) s.value = cur;
+}
+
+function gStep(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById('fStep'+i).style.display = i===n?'block':'none';
+    const el = document.getElementById('s'+i);
+    el.className = 'sn ' + (i<n?'sn-done':i===n?'sn-active':'sn-pend');
+  });
+}
+
+function sign(n) {
+  const name = document.getElementById('sn'+n).value.trim();
+  if (!name) { toast('יש להזין שם לפני חתימה', true); return; }
+  sigs[n-1] = true;
+  document.getElementById('sb'+n).textContent = '✓ חתום';
+  document.getElementById('sb'+n).className = 'sig-btn signed';
+  document.getElementById('ss'+n).textContent = name;
+  document.getElementById('ss'+n).className = 'sig-st sig-ok';
+  document.getElementById('sn'+n).disabled = true;
+  document.getElementById('sigbox'+n).classList.add('signed');
+  if (sigs.every(Boolean)) document.getElementById('toStep3').disabled = false;
+}
+
+async function saveTest() {
+  const btn = document.getElementById('saveBtn');
+  btn.innerHTML = '<span class="spin"></span> שומר...'; btn.disabled = true;
+  const data = {
+    date: document.getElementById('tDate').value || new Date().toISOString().split('T')[0],
+    drone: document.getElementById('tDrone').value || 'DART-001',
+    desc: document.getElementById('tDesc').value,
+    configChanges: document.getElementById('tConfig').value,
+    env: document.getElementById('tEnv').value,
+    result: document.getElementById('tResult').value,
+    fault: document.getElementById('tFault').value,
+    faultOpenDate: document.getElementById('tFaultOpen').value,
+    faultCloseDate: document.getElementById('tFaultClose').value,
+    fix: document.getElementById('tFix').value,
+    fixedBy: document.getElementById('tFixBy').value,
+    fixDate: document.getElementById('tFixDate').value,
+    notes: document.getElementById('tNotes').value,
+    sig_tech: sigs[0]?'true':'false',
+    sig_pilot: sigs[1]?'true':'false',
+    sig_engineer: sigs[2]?'true':'false',
+    sig_tech_name: document.getElementById('sn1').value,
+    sig_pilot_name: document.getElementById('sn2').value,
+    sig_engineer_name: document.getElementById('sn3').value,
+  };
+  try {
+    // map desc to description for Supabase
+    const supaData = {...data, description: data.desc || data.description || ''};
+    delete supaData.desc;
+    await supabase('POST', 'tests', supaData);
+    {
+      toast('ניסוי נשמר ב-Supabase!');
+      sigs = [false,false,false];
+      [1,2,3].forEach(n => {
+        document.getElementById('sb'+n).textContent = 'חתום';
+        document.getElementById('sb'+n).className = 'sig-btn';
+        document.getElementById('ss'+n).textContent = 'ממתין';
+        document.getElementById('ss'+n).className = 'sig-st sig-pend';
+        document.getElementById('sn'+n).value = '';
+        document.getElementById('sn'+n).disabled = false;
+        document.getElementById('sigbox'+n).classList.remove('signed');
+      });
+      document.getElementById('toStep3').disabled = true;
+      ['tDate','tDesc','tConfig','tEnv','tFault','tFaultOpen','tFaultClose','tFix','tFixBy','tFixDate','tNotes'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.value='';
+      });
+      document.getElementById('tResult').value = '';
+      document.getElementById('tDrone').value = '';
+      gStep(1);
+      await loadTests();
+      if (selDrone) selectDrone(selDrone);
+    } else throw new Error(r.error);
+  } catch(e) { toast('שגיאה בשמירה: ' + e.message, true); }
+  btn.textContent = 'שמור ב-Google Sheets ↑'; btn.disabled = false;
+}
+
+function renderHistory() {
+  const filter = document.getElementById('filterDrone')?.value || '';
+  const filtered = filter ? tests.filter(t=>t.drone===filter) : tests;
+  const list = document.getElementById('historyList'); if (!list) return;
+  if (filtered.length===0) { list.innerHTML='<div class="empty">אין ניסויים רשומים</div>'; return; }
+  list.innerHTML = [...filtered].reverse().map(t => `
+    <div class="tentry">
+      <div class="th">
+        <div>
+          <span style="font-size:13px;font-weight:700">${t.date}</span>
+          <span style="font-size:12px;color:#888;margin-right:8px">${t.drone}</span>
+        </div>
+        <span class="badge ${bClass(t.result)}">${t.result||''}</span>
+      </div>
+      <div style="font-size:13px;color:#444;margin-bottom:6px">${t.desc||''}</div>
+      ${t.configChanges?`<div style="font-size:11px;color:#888;margin-bottom:6px">שינויים: ${t.configChanges}</div>`:''}
+      <div class="chips">
+        <span class="chip ${t.sig_tech==='true'?'ok':''}">טכנאי ${t.sig_tech==='true'?(t.sig_tech_name?'✓ '+t.sig_tech_name:'✓'):'–'}</span>
+        <span class="chip ${t.sig_pilot==='true'?'ok':''}">טייס ${t.sig_pilot==='true'?(t.sig_pilot_name?'✓ '+t.sig_pilot_name:'✓'):'–'}</span>
+        <span class="chip ${t.sig_engineer==='true'?'ok':''}">מהנדס ${t.sig_engineer==='true'?(t.sig_engineer_name?'✓ '+t.sig_engineer_name:'✓'):'–'}</span>
+      </div>
+      ${t.fault?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;font-size:12px;color:#888">תקלה: ${t.fault} ${t.fixedBy?'| תוקן ע"י '+t.fixedBy:'| טרם תוקן'}</div>`:''}
+    </div>`).join('');
+}
+
+function renderFaults() {
+  const statusFilter = document.getElementById('faultFilter')?.value || '';
+  let faults = tests.filter(t => t.fault && t.fault.trim() !== '');
+  if (statusFilter==='open') faults = faults.filter(t => !t.faultCloseDate || t.faultCloseDate.trim()==='');
+  if (statusFilter==='closed') faults = faults.filter(t => t.faultCloseDate && t.faultCloseDate.trim()!=='');
+
+  const total = faults.length;
+  const open = faults.filter(t => !t.faultCloseDate || t.faultCloseDate.trim()==='').length;
+  const closed = total - open;
+
+  const stats = document.getElementById('faultStats');
+  if (stats) stats.innerHTML = `
+    <div class="stat-card"><div class="stat-label">סה"כ תקלות</div><div class="stat-val" style="color:#185FA5">${total}</div></div>
+    <div class="stat-card"><div class="stat-label">פתוחות</div><div class="stat-val" style="color:#EF9F27">${open}</div></div>
+    <div class="stat-card"><div class="stat-label">סגורות</div><div class="stat-val" style="color:#1D9E75">${closed}</div></div>`;
+
+  const list = document.getElementById('faultsList'); if (!list) return;
+  if (faults.length===0) { list.innerHTML='<div class="empty">אין תקלות רשומות</div>'; return; }
+
+  list.innerHTML = [...faults].reverse().map(t => {
+    const isOpen = !t.faultCloseDate || t.faultCloseDate.trim()==='';
+    return `
+    <div class="fault-card ${isOpen?'open':'closed'}">
+      <div class="fault-header">
+        <div>
+          <div class="fault-title">${t.drone} — ${t.fault}</div>
+          <div class="fault-sub">ניסוי מתאריך ${t.date}</div>
+        </div>
+        <span class="fault-badge ${isOpen?'open-b':'closed-b'}">${isOpen?'פתוחה':'סגורה'}</span>
+      </div>
+      <div class="fault-grid">
+        <div class="fl">תאריך פתיחת תקלה</div>
+        <div class="fv">${t.faultOpenDate||t.date||'—'}</div>
+        <div class="fl">תאריך סגירת תקלה</div>
+        <div class="fv" style="${isOpen?'color:#EF9F27':''}">${isOpen?'טרם נסגרה':t.faultCloseDate}</div>
+        <div class="fl">מי תיקן</div>
+        <div class="fv">${t.fixedBy||'—'}</div>
+        <div class="fl">תאריך תיקון</div>
+        <div class="fv">${t.fixDate||'—'}</div>
+      </div>
+      ${t.fix && t.fix.trim()!=='' ? `
+      <div class="fault-desc-box">
+        <div class="fault-desc-label">תיאור התיקון</div>
+        <div class="fault-desc-val">${t.fix}</div>
+      </div>` : `<div class="fault-desc-box"><div class="fault-desc-label" style="font-style:italic;color:#aaa">תיאור התיקון טרם הוזן</div></div>`}
+    </div>`;
+  }).join('');
+}
+
+let droneHistory = [];
+
+async function loadDroneHistory(droneId=null) {
+  try {
+    let filters = 'order=changedAt.desc';
+    if (droneId) filters += '&droneId=eq.' + encodeURIComponent(droneId);
+    droneHistory = await supabase('GET', 'drone_history', null, filters);
+    if (!Array.isArray(droneHistory)) droneHistory = [];
+    renderDroneHistory();
+  } catch(e) { toast('שגיאה בטעינת היסטוריה: ' + e.message, true); }
+}
+
+function renderDroneHistory() {
+  const filter = document.getElementById('histDroneFilter')?.value || '';
+  const filtered = filter ? droneHistory.filter(h=>h.droneId===filter) : droneHistory;
+  const list = document.getElementById('droneHistoryList'); if (!list) return;
+  if (filtered.length===0) { list.innerHTML='<div class="empty">אין היסטוריית תצורה</div>'; return; }
+  list.innerHTML = [...filtered].reverse().map(h => {
+    const dt = h.changedAt ? new Date(h.changedAt).toLocaleString('he-IL') : '—';
+    return `
+    <div class="fault-card" style="border-right-color:#185FA5">
+      <div class="fault-header">
+        <div>
+          <div class="fault-title">${h.droneId}</div>
+          <div class="fault-sub">${dt} | עודכן ע"י: <b>${h.changedBy||'—'}</b></div>
+        </div>
+        <span class="badge b-blue">גרסה קודמת</span>
+      </div>
+      ${h.changeReason ? `<div style="background:#f0f4fa;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px"><b>סיבת השינוי:</b> ${h.changeReason}</div>` : ''}
+      <div class="fault-grid" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="fl">מנוע</div><div class="fv">${h.engine||'—'}</div>
+        <div class="fl">גרסת תוכנה</div><div class="fv">${h.sw||'—'}</div>
+        <div class="fl">מ"ס</div><div class="fv" style="grid-column:span 0">${h.serial||'—'}</div>
+        <div class="fl">בקר טיסה</div><div class="fv">${h.fc||'—'}</div>
+        <div class="fl">ESC</div><div class="fv">${h.esc||'—'}</div>
+        <div class="fl">מצלמה</div><div class="fv">${h.camera||'—'}</div>
+        <div class="fl">גרסת תוכנה SW</div><div class="fv">${h.sw||'—'}</div>
+        <div class="fl">סטטוס</div><div class="fv">${h.status==='ok'?'תקין':h.status==='warn'?'בניסוי':'בתיקון'}</div>
+      </div>
+      ${h.configNotes ? `<div class="fault-desc-box"><div class="fault-desc-label">תצורת הרכבה</div><div class="fault-desc-val">${h.configNotes}</div></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openNewDroneModal() {
+  document.getElementById('editId').value = '';
+  document.getElementById('editIsNew').value = 'true';
+  document.getElementById('editModalTitle').textContent = 'הוספת רחפן חדש';
+  ['eSerial','eVariant','eSw','eRotors','eEngine','eFc','eEsc','eGps','ePdc','eCamera','eCamAngle','eNotes','eConfigNotes','eChangedBy','eChangeReason'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  // auto-fill today
+  document.getElementById('eChangedAt').value = new Date().toISOString().split('T')[0];
+  editStatus = 'ok'; setStatus('ok');
+  document.getElementById('saveEditBtn').textContent = 'הוסף רחפן ב-Sheets';
+  document.getElementById('editModal').classList.add('open');
+}
+
+const DEMO_DRONE_IDS = ['DART-001','DART-002','DART-003','DART-004','DART-005'];
+
+function confirmClear(type) {
+  const msgs = {
+    drones: 'האם למחוק את 5 רחפני הדמה? (ניסויים ישמרו)',
+    tests:  'האם למחוק את כל ניסויי הדמה?',
+    all:    'האם למחוק את כל המידע — רחפנים, ניסויים והיסטוריה? פעולה זו אינה הפיכה!'
+  };
+  if (!confirm(msgs[type])) return;
+  clearDemoData(type);
+}
+
+async function clearDemoData(type) {
+  const msg = document.getElementById('clearMsg');
+  msg.textContent = 'מוחק...';
+  msg.style.color = '#888';
+  try {
+    const ids = DEMO_DRONE_IDS.join(',');
+    if (type === 'drones' || type === 'all') {
+      await supabase('DELETE', 'drones', null, 'id=in.(' + ids + ')');
+    }
+    if (type === 'tests' || type === 'all') {
+      await supabase('DELETE', 'tests', null, 'id=neq.NEVER_MATCH_placeholder');
+    }
+    if (type === 'all') {
+      await supabase('DELETE', 'drone_history', null, 'historyId=neq.NEVER_MATCH_placeholder');
+    }
+    msg.textContent = '✓ הניקוי הושלם';
+    msg.style.color = '#1D9E75';
+    toast('הניקוי הושלם!');
+    await loadAll();
+  } catch(e) {
+    msg.textContent = 'שגיאה: ' + e.message;
+    msg.style.color = '#E24B4A';
+    toast('שגיאה בניקוי', true);
+  }
+}
+
+// Supabase — מתחבר אוטומטית
+setConn('loading');
+(async () => {
+  try {
+    await supabase('GET', 'drones', null, 'limit=1');
+    setConn('ok');
+    document.getElementById('setupCard').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    await loadAll();
+    // seed demo drones if empty
+    if (drones.length === 0) await seedDemoDrones();
+  } catch(e) {
+    setConn('err');
+    console.error(e);
+  }
+})();
+
+async function seedDemoDrones() {
+  const demoDrones = [
+    {id:'DART-001',serial:'SN-20240101',engine:'T-Motor MN505S',variant:'Alpha',sw:'v3.2.1',camera:'Sony A7R',camAngle:'90°',rotors:6,fc:'Pixhawk 6C',esc:'Hobbywing X60',gps:'Here3+',pdc:'PM07D',status:'ok',notes:'כנף ראשית — ניסויי מנוע',configNotes:''},
+    {id:'DART-002',serial:'SN-20240215',engine:'T-Motor MN505S',variant:'Beta',sw:'v3.2.3',camera:'FLIR Tau 2',camAngle:'45°',rotors:6,fc:'Pixhawk 6C',esc:'Hobbywing X60',gps:'Here3+',pdc:'PM07D',status:'ok',notes:'ניסויי תרמי',configNotes:''},
+    {id:'DART-003',serial:'SN-20240318',engine:'T-Motor MN605S',variant:'Gamma',sw:'v3.3.0',camera:'Sony A7R',camAngle:'90°',rotors:8,fc:'Cube Orange+',esc:'Zubax Myxa',gps:'Septentrio mosaicX5',pdc:'Zubax Babel',status:'warn',notes:'שינוי לתצורת אוקטו',configNotes:''},
+    {id:'DART-004',serial:'SN-20240412',engine:'T-Motor MN505S',variant:'Alpha',sw:'v3.2.1',camera:'Sony ZV-E10',camAngle:'30°',rotors:6,fc:'Pixhawk 6C',esc:'Hobbywing X60',gps:'Here3+',pdc:'PM07D',status:'ok',notes:'ניסויי מצלמה',configNotes:''},
+    {id:'DART-005',serial:'SN-20240520',engine:'T-Motor MN605S',variant:'Delta',sw:'v3.4.0-beta',camera:'FLIR Boson',camAngle:'45°',rotors:8,fc:'Cube Orange+',esc:'Zubax Myxa',gps:'Septentrio mosaicX5',pdc:'Zubax Babel',status:'err',notes:'בתיקון — בעיית ESC',configNotes:''},
+  ];
+  for (const d of demoDrones) {
+    await supabase('POST', 'drones', d);
+  }
+  await loadDrones();
+  toast('רחפני דמה נטענו!');
+}
+</script>
+</body>
+</html>
